@@ -1,143 +1,143 @@
 package server
 
 import (
-    "encoding/json"
+	"encoding/json"
 
-    "github.com/yekhlakov/gojsonrpc/common"
+	"github.com/yekhlakov/gojsonrpc/common"
 )
 
 // An JsonRpcServer does actual processing
 
 // Create a new JsonRpcServer
 func NewServer() *JsonRpcServer {
-    return &JsonRpcServer{
-        Methods: make(map[string]JsonRpcMethod),
-    }
+	return &JsonRpcServer{
+		Methods: make(map[string]JsonRpcMethod),
+	}
 }
 
 // Add a handler (that is effectively a collection of methods)
 func (e *JsonRpcServer) AddHandler(handler Handler, methodNamePrefix string) {
-    methods := ExtractMethods(handler, methodNamePrefix)
+	methods := ExtractMethods(handler, methodNamePrefix)
 
-    for _, method := range methods {
-        e.Methods[method.Name] = method
-    }
+	for _, method := range methods {
+		e.Methods[method.Name] = method
+	}
 }
 
 // Get a method from the server
 func (e *JsonRpcServer) GetMethod(name string) (method JsonRpcMethod, ok bool) {
-    method, ok = e.Methods[name]
-    return
+	method, ok = e.Methods[name]
+	return
 }
 
 // Get RAW request (probably a batch), return RAW response
-func (e *JsonRpcServer) ProcessRawInput(context * RequestContext) (err error) {
+func (e *JsonRpcServer) ProcessRawInput(context *RequestContext) (err error) {
 
-    for _, b := range context.RawRequest {
-        // skip initial whitespace
-        if b == 9 || b == 32 || b == 10 || b == 13 {
-            continue
-        }
+	for _, b := range context.RawRequest {
+		// skip initial whitespace
+		if b == 9 || b == 32 || b == 10 || b == 13 {
+			continue
+		}
 
-        if b == '[' {
-            // Batch
+		if b == '[' {
+			// Batch
 
-            batch := struct {
-                Batch []json.RawMessage `json:"batch,omitempty"`
-            }{}
+			batch := struct {
+				Batch []json.RawMessage `json:"batch,omitempty"`
+			}{}
 
-            rawBatch := []byte(`{"batch":`)
-            rawBatch = append(rawBatch, context.RawRequest...)
-            rawBatch = append(rawBatch, []byte(`}`)...)
+			rawBatch := []byte(`{"batch":`)
+			rawBatch = append(rawBatch, context.RawRequest...)
+			rawBatch = append(rawBatch, []byte(`}`)...)
 
-            if err = json.Unmarshal(rawBatch, &batch); err != nil {
-                context.MakeErrorResponse(common.ParseError)
-                break
-            }
+			if err = json.Unmarshal(rawBatch, &batch); err != nil {
+				context.MakeErrorResponse(common.ParseError)
+				break
+			}
 
-            if len(batch.Batch) == 0 {
-                context.MakeErrorResponse(common.InvalidRequestError)
-                break;
-            }
+			if len(batch.Batch) == 0 {
+				context.MakeErrorResponse(common.InvalidRequestError)
+				break
+			}
 
-            return e.ProcessRawBatch(batch.Batch, context)
-        } else if b == '{' {
-            if err = json.Unmarshal(context.RawRequest, &context.JsonRpcRequest); err != nil {
-                context.MakeErrorResponse(common.ParseError)
-                break
-            }
+			return e.ProcessRawBatch(batch.Batch, context)
+		} else if b == '{' {
+			if err = json.Unmarshal(context.RawRequest, &context.JsonRpcRequest); err != nil {
+				context.MakeErrorResponse(common.ParseError)
+				break
+			}
 
-            return e.ProcessRawRequest(context)
-        } else {
-            context.MakeErrorResponse(common.InvalidRequestError)
-            break
-        }
+			return e.ProcessRawRequest(context)
+		} else {
+			context.MakeErrorResponse(common.InvalidRequestError)
+			break
+		}
 
-    }
+	}
 
-    _ = context.RebuildRawResponse()
+	_ = context.RebuildRawResponse()
 
-    return err
+	return err
 }
 
 // Get a list of RAW requests of the batch, process each request, return RAW batch response
-func (e *JsonRpcServer) ProcessRawBatch(batch []json.RawMessage, context * RequestContext) (err error) {
+func (e *JsonRpcServer) ProcessRawBatch(batch []json.RawMessage, context *RequestContext) (err error) {
 
-    results := make([]json.RawMessage, len(batch))
+	results := make([]json.RawMessage, len(batch))
 
-    for i, rawRequest := range batch {
-        localContext := *context
-        localContext.RawRequest = rawRequest
-        _ = e.ProcessRawRequest(&localContext)
-        results[i] = localContext.RawResponse
-    }
+	for i, rawRequest := range batch {
+		localContext := *context
+		localContext.RawRequest = rawRequest
+		_ = e.ProcessRawRequest(&localContext)
+		results[i] = localContext.RawResponse
+	}
 
-    context.RawResponse, err = json.Marshal(results)
+	context.RawResponse, err = json.Marshal(results)
 
-    return
+	return
 }
 
 // Process RAW request, return RAW result
-func (e *JsonRpcServer) ProcessRawRequest(context * RequestContext) (err error) {
+func (e *JsonRpcServer) ProcessRawRequest(context *RequestContext) (err error) {
 
-    // Get Json-Rpc request from byte array
-    err = context.ParseRawRequest()
-    if err != nil {
-        _ = context.RebuildRawResponse()
-        return
-    }
+	// Get Json-Rpc request from byte array
+	err = context.ParseRawRequest()
+	if err != nil {
+		_ = context.RebuildRawResponse()
+		return
+	}
 
-    // Get method from the server
-    if method, ok := e.GetMethod(context.JsonRpcRequest.Method); ok {
-        // Apply pre-processing pipeline
-        context.applyPipeline(&e.PreProcessingStages)
+	// Get method from the server
+	if method, ok := e.GetMethod(context.JsonRpcRequest.Method); ok {
+		// Apply pre-processing pipeline
+		context.applyPipeline(&e.PreProcessingStages)
 
-        // InvokeMethod the method
-        err = context.InvokeMethod(method)
+		// InvokeMethod the method
+		err = InvokeMethod(context, method)
 
-        // Apply post-processing pipeline
-        context.applyPipeline(&e.PostProcessingStages)
+		// Apply post-processing pipeline
+		context.applyPipeline(&e.PostProcessingStages)
 
-    } else {
-        context.MakeErrorResponse(common.MethodNotFoundError)
-        err = nil
-    }
+	} else {
+		context.MakeErrorResponse(common.MethodNotFoundError)
+		err = nil
+	}
 
-    // Rebuild raw response
-    _ = context.RebuildRawResponse()
+	// Rebuild raw response
+	_ = context.RebuildRawResponse()
 
-    return
+	return
 }
 
 // Apply a processing pipeline to the context
-func (rc * RequestContext) applyPipeline(stages *[]Stage) (ok bool) {
-    ok = true
+func (rc *RequestContext) applyPipeline(stages *[]Stage) (ok bool) {
+	ok = true
 
-    for _, stage := range *stages {
-        if ok = stage(rc); !ok {
-            return
-        }
-    }
+	for _, stage := range *stages {
+		if ok = stage(rc); !ok {
+			return
+		}
+	}
 
-    return
+	return
 }
