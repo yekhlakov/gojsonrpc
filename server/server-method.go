@@ -6,7 +6,7 @@ import (
 
 // InvokeMethod the method with given request and response
 // A lot of reflection magic is going on here
-func InvokeMethod(rc *RequestContext, m JsonRpcMethod) (err error) {
+func InvokeMethod(rc *common.RequestContext, m JsonRpcMethod) (err error) {
 
 	// Prepare an empty Response
 	rc.MakeEmptyResponse()

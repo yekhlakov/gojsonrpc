@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/yekhlakov/gojsonrpc/common"
 	"github.com/yekhlakov/gojsonrpc/server"
 )
 
@@ -90,7 +91,7 @@ func TestHttpTransport_GetEndpoint(t *testing.T) {
 
 func TestHttpRequestContext_ApplyPipeline(t *testing.T) {
 	context := HttpRequestContext{
-		RequestContext: server.EmptyRequestContext(),
+		RequestContext: common.EmptyRequestContext(),
 	}
 
 	stages := []HttpStage{
@@ -126,7 +127,7 @@ func TestHttpRequestContext_ApplyPipeline(t *testing.T) {
 
 func TestHttpRequestContext_ApplyPipeline2(t *testing.T) {
 	context := HttpRequestContext{
-		RequestContext: server.EmptyRequestContext(),
+		RequestContext: common.EmptyRequestContext(),
 	}
 
 	stages := []HttpStage{
@@ -164,7 +165,7 @@ func TestHttpTransport_ProcessRequest(t *testing.T) {
 	server1 := server.JsonRpcServer{}
 	_, _ = transport.AddEndpoint("/lol", &server1)
 	context := HttpRequestContext{
-		RequestContext: server.EmptyRequestContext(),
+		RequestContext: common.EmptyRequestContext(),
 	}
 	context.RawRequest = []byte(`{}`)
 

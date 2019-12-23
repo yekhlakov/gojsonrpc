@@ -14,7 +14,7 @@ import (
 // This extends the common Json-Rpc Request Context
 type HttpRequestContext struct {
 	HttpRequest *http.Request
-	server.RequestContext
+	common.RequestContext
 	HttpResponse http.ResponseWriter
 }
 
@@ -109,7 +109,7 @@ func (t *HttpTransport) AddEndpoint(url string, s *server.JsonRpcServer) (*serve
 		context := HttpRequestContext{
 			HttpRequest:    r,
 			HttpResponse:   w,
-			RequestContext: server.EmptyRequestContext(),
+			RequestContext: common.EmptyRequestContext(),
 		}
 
 		var err error

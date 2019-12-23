@@ -3,6 +3,8 @@ package server
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/yekhlakov/gojsonrpc/common"
 )
 
 func TestJsonRpcServer_AddHandler(t *testing.T) {
@@ -52,7 +54,7 @@ func TestJsonRpcServer_ProcessRawRequest(t *testing.T) {
 
 	s := NewServer()
 	s.AddHandler(test_EmptyHandler{}, "Handle_")
-	rc := EmptyRequestContext()
+	rc := common.EmptyRequestContext()
 	rc.RawRequest = []byte(`{"badjson":`)
 	err := s.ProcessRawRequest(&rc)
 	if err == nil {
@@ -95,7 +97,7 @@ func TestJsonRpcServer_ProcessRawRequest(t *testing.T) {
 		s := NewServer()
 		s.AddHandler(data.Handler, "Handle_")
 
-		rc := EmptyRequestContext()
+		rc := common.EmptyRequestContext()
 		rc.RawRequest = []byte(data.In)
 		err := rc.ParseRawRequest()
 		if err != nil {
@@ -150,7 +152,7 @@ func TestJsonRpcServer_ProcessRawBatch(t *testing.T) {
 		s := NewServer()
 		s.AddHandler(data.Handler, "Handle_")
 
-		rc := EmptyRequestContext()
+		rc := common.EmptyRequestContext()
 
 		batch := make([]json.RawMessage, len(data.In))
 		for i, v := range data.In {
@@ -229,7 +231,7 @@ func TestJsonRpcServer_ProcessRawInput(t *testing.T) {
 		s := NewServer()
 		s.AddHandler(data.Handler, "Handle_")
 
-		rc := EmptyRequestContext()
+		rc := common.EmptyRequestContext()
 		rc.RawRequest = []byte(data.In)
 		_ = s.ProcessRawInput(&rc)
 
@@ -238,72 +240,5 @@ func TestJsonRpcServer_ProcessRawInput(t *testing.T) {
 			t.Errorf("expected %s", data.Out)
 			t.Errorf("received %s", string(rc.RawResponse))
 		}
-	}
-}
-
-func TestRequestContext_ApplyPipeline(t *testing.T) {
-	rc := EmptyRequestContext()
-
-	stages := []Stage{
-		func(context *RequestContext) bool {
-			context.Data["lol"] = "kek"
-			return true
-		},
-
-		// This should be called last
-		func(context *RequestContext) bool {
-			context.Data["lol"] = "cheburek"
-			return false
-		},
-
-		// This should not be called
-		func(context *RequestContext) bool {
-			context.Data["lol"] = "azaza"
-			return true
-		},
-	}
-
-	rc.applyPipeline(&stages)
-
-	v, ok := rc.Data["lol"]
-	if !ok {
-		t.Errorf("pipeline not applied")
-	}
-
-	if v != "cheburek" {
-		t.Errorf("pipeline was not applied correctly")
-	}
-}
-
-func TestRequestContext_ApplyPipeline2(t *testing.T) {
-	rc := EmptyRequestContext()
-
-	stages := []Stage{
-		func(context *RequestContext) bool {
-			context.Data["lol"] = "kek"
-			return true
-		},
-
-		func(context *RequestContext) bool {
-			context.Data["lol"] = "cheburek"
-			return true
-		},
-
-		// This should be called too
-		func(context *RequestContext) bool {
-			context.Data["lol"] = "azaza"
-			return true
-		},
-	}
-
-	rc.applyPipeline(&stages)
-
-	v, ok := rc.Data["lol"]
-	if !ok {
-		t.Errorf("pipeline not applied")
-	}
-
-	if v != "azaza" {
-		t.Errorf("pipeline was not applied correctly")
 	}
 }

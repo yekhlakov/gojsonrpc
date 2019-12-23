@@ -31,7 +31,7 @@ func (e *JsonRpcServer) GetMethod(name string) (method JsonRpcMethod, ok bool) {
 }
 
 // Get RAW request (probably a batch), return RAW response
-func (e *JsonRpcServer) ProcessRawInput(context *RequestContext) (err error) {
+func (e *JsonRpcServer) ProcessRawInput(context *common.RequestContext) (err error) {
 
 	for _, b := range context.RawRequest {
 		// skip initial whitespace
@@ -81,7 +81,7 @@ func (e *JsonRpcServer) ProcessRawInput(context *RequestContext) (err error) {
 }
 
 // Get a list of RAW requests of the batch, process each request, return RAW batch response
-func (e *JsonRpcServer) ProcessRawBatch(batch []json.RawMessage, context *RequestContext) (err error) {
+func (e *JsonRpcServer) ProcessRawBatch(batch []json.RawMessage, context *common.RequestContext) (err error) {
 
 	results := make([]json.RawMessage, len(batch))
 
@@ -98,7 +98,7 @@ func (e *JsonRpcServer) ProcessRawBatch(batch []json.RawMessage, context *Reques
 }
 
 // Process RAW request, return RAW result
-func (e *JsonRpcServer) ProcessRawRequest(context *RequestContext) (err error) {
+func (e *JsonRpcServer) ProcessRawRequest(context *common.RequestContext) (err error) {
 
 	// Get Json-Rpc request from byte array
 	err = context.ParseRawRequest()
@@ -110,13 +110,13 @@ func (e *JsonRpcServer) ProcessRawRequest(context *RequestContext) (err error) {
 	// Get method from the server
 	if method, ok := e.GetMethod(context.JsonRpcRequest.Method); ok {
 		// Apply pre-processing pipeline
-		context.applyPipeline(&e.PreProcessingStages)
+		context.ApplyPipeline(&e.PreProcessingStages)
 
 		// InvokeMethod the method
 		err = InvokeMethod(context, method)
 
 		// Apply post-processing pipeline
-		context.applyPipeline(&e.PostProcessingStages)
+		context.ApplyPipeline(&e.PostProcessingStages)
 
 	} else {
 		context.MakeErrorResponse(common.MethodNotFoundError)
@@ -125,19 +125,6 @@ func (e *JsonRpcServer) ProcessRawRequest(context *RequestContext) (err error) {
 
 	// Rebuild raw response
 	_ = context.RebuildRawResponse()
-
-	return
-}
-
-// Apply a processing pipeline to the context
-func (rc *RequestContext) applyPipeline(stages *[]Stage) (ok bool) {
-	ok = true
-
-	for _, stage := range *stages {
-		if ok = stage(rc); !ok {
-			return
-		}
-	}
 
 	return
 }

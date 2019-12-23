@@ -55,7 +55,7 @@ func TestInvokeMethod(t *testing.T) {
 	for k, data := range testData {
 		m := ExtractMethods(data.Handler, "Handle_")
 
-		rc := &RequestContext{
+		rc := &common.RequestContext{
 			JsonRpcRequest:  common.Request{},
 			JsonRpcResponse: common.Response{},
 			RawRequest:      []byte(data.In),
